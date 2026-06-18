@@ -1,0 +1,16 @@
+import 'package:flutter/widgets.dart';
+
+class EvoSpacing {
+  static const xs = 4.0;
+  static const sm = 8.0;
+  static const md = 12.0;
+  static const lg = 16.0;
+  static const xl = 24.0;
+  static const xxl = 32.0;
+
+  static const gapXs = SizedBox(height: xs);
+  static const gapSm = SizedBox(height: sm);
+  static const gapMd = SizedBox(height: md);
+  static const gapLg = SizedBox(height: lg);
+  static const gapXl = SizedBox(height: xl);
+}

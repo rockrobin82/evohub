@@ -7,6 +7,7 @@ import '../../shared/spacing.dart';
 import '../../widgets/evo_card.dart';
 import '../../widgets/primary_cta_button.dart';
 import '../workouts/models.dart';
+import 'exercise_configuration_screen.dart';
 import 'rest_timer_screen.dart';
 import 'workout_summary_screen.dart';
 
@@ -28,6 +29,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   late int _reps;
   late int _rir;
   late double _weightKg;
+  late ProgressionRule _rule;
   ExerciseLogStore? _store;
   ExerciseLog? _latestLog;
   bool _isLoadingStoredState = true;
@@ -45,8 +47,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final exercise = _exercise;
-    final rule = exercise.progressionRule;
-    final suggestion = rule.nextSuggestion(
+    final suggestion = _rule.nextSuggestion(
       currentWeightKg: _weightKg,
       currentTargetReps: _reps,
       achievedReps: _reps,
@@ -54,7 +55,16 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     final totalExercises = widget.day.exercises.length;
 
     return Scaffold(
-      appBar: AppBar(title: Text('Dzień ${widget.day.name}')),
+      appBar: AppBar(
+        title: Text('Dzień ${widget.day.name}'),
+        actions: [
+          IconButton(
+            tooltip: 'Konfiguracja ćwiczenia',
+            onPressed: _openExerciseConfiguration,
+            icon: const Icon(Icons.settings_outlined),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
@@ -84,7 +94,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
             ),
             EvoSpacing.gapLg,
             _AdvancedSection(
-              rule: rule,
+              rule: _rule,
               rir: _rir,
               onRirDecrement: _rir > 0 ? () => setState(() => _rir -= 1) : null,
               onRirIncrement: _rir < 5 ? () => setState(() => _rir += 1) : null,
@@ -111,7 +121,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
                   EvoSpacing.gapLg,
                   _WeightControl(
                     value: _weightKg,
-                    increment: rule.weightIncrementKg,
+                    increment: _rule.weightIncrementKg,
                     onChanged: (value) => setState(() => _weightKg = value),
                   ),
                 ],
@@ -196,6 +206,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     _reps = exercise.currentTargetReps;
     _rir = exercise.targetRir;
     _weightKg = exercise.currentWeightKg;
+    _rule = exercise.progressionRule;
     _latestLog = null;
     _isLoadingStoredState = true;
   }
@@ -218,12 +229,20 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       '[ExerciseScreen] loadStoredExerciseState exerciseId=${exercise.id}',
     );
     final latestLog = await store.latestForExercise(exercise.id);
+    final progressionConfig = await store.progressionConfigForExercise(
+      exercise.id,
+    );
     final progressState = await store.progressStateForExercise(exercise.id);
 
     if (!mounted || exercise.id != _exercise.id) return;
 
     setState(() {
       _latestLog = latestLog;
+      if (progressionConfig != null) {
+        _rule = progressionConfig.progressionRule;
+        _weightKg = progressionConfig.currentWeightKg;
+        _reps = progressionConfig.currentTargetReps;
+      }
       if (progressState != null) {
         _weightKg = progressState.currentWeightKg;
         _reps = progressState.currentTargetReps;
@@ -233,6 +252,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     debugPrint(
       '[ExerciseScreen] loaded startup data exerciseId=${exercise.id} '
       'latestLog=${latestLog == null ? 'null' : '${latestLog.weightKg}kg x ${latestLog.reps} RIR ${latestLog.rir}'} '
+      'progressionConfig=${progressionConfig == null ? 'null' : '${progressionConfig.minReps}-${progressionConfig.maxReps} step ${progressionConfig.repStep} +${progressionConfig.weightIncrementKg}kg'} '
       'progressState=${progressState == null ? 'null' : '${progressState.currentWeightKg}kg x ${progressState.currentTargetReps}'}',
     );
   }
@@ -254,7 +274,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       reps: _reps,
       rir: _rir,
     );
-    final nextTarget = exercise.progressionRule.nextSuggestion(
+    final nextTarget = _rule.nextSuggestion(
       currentWeightKg: _weightKg,
       currentTargetReps: _reps,
       achievedReps: _reps,
@@ -273,6 +293,17 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
         currentTargetReps: nextTarget.targetReps,
       ),
     );
+    final progressionConfig = await store.progressionConfigForExercise(
+      exercise.id,
+    );
+    if (progressionConfig != null) {
+      await store.saveProgressionConfig(
+        progressionConfig.copyWith(
+          currentWeightKg: nextTarget.weightKg,
+          currentTargetReps: nextTarget.targetReps,
+        ),
+      );
+    }
 
     if (!mounted || exercise.id != _exercise.id) return;
 
@@ -310,6 +341,19 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   String _formatLastWorkout(ExerciseLog? log) {
     if (log == null) return 'Brak danych';
     return '${_formatWeight(log.weightKg)} kg × ${log.reps}';
+  }
+
+  Future<void> _openExerciseConfiguration() async {
+    final didChange = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => ExerciseConfigurationScreen(exercise: _exercise),
+      ),
+    );
+
+    if (!mounted || didChange != true) return;
+
+    _loadExerciseDefaults();
+    await _loadStoredExerciseState();
   }
 }
 

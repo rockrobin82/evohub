@@ -10,6 +10,7 @@ class ExerciseLogStore {
 
   static const _logsKey = 'exercise_logs_v1';
   static const _progressStateKey = 'exercise_progress_state_v1';
+  static const _progressionConfigsKey = 'exercise_progression_configs_v1';
 
   final SharedPreferences _preferences;
 
@@ -101,5 +102,57 @@ class ExerciseLogStore {
       '[ExerciseLogStore] saveProgressState persisted '
       'key=$_progressStateKey total=${states.length}',
     );
+  }
+
+  Future<void> removeProgressState(String exerciseId) async {
+    final states = await loadProgressStates();
+    states.remove(exerciseId);
+
+    await _preferences.setStringList(
+      _progressStateKey,
+      states.values.map((item) => jsonEncode(item.toJson())).toList(),
+    );
+  }
+
+  Future<Map<String, ExerciseProgressionConfig>>
+  loadProgressionConfigs() async {
+    final encodedConfigs =
+        _preferences.getStringList(_progressionConfigsKey) ?? const [];
+    final configs = encodedConfigs
+        .map((encodedConfig) => jsonDecode(encodedConfig) as Map<String, Object?>)
+        .map(ExerciseProgressionConfig.fromJson);
+
+    return {for (final config in configs) config.exerciseId: config};
+  }
+
+  Future<ExerciseProgressionConfig?> progressionConfigForExercise(
+    String exerciseId,
+  ) async {
+    final configs = await loadProgressionConfigs();
+    return configs[exerciseId];
+  }
+
+  Future<void> saveProgressionConfig(
+    ExerciseProgressionConfig config,
+  ) async {
+    final configs = await loadProgressionConfigs();
+    configs[config.exerciseId] = config;
+
+    await _preferences.setStringList(
+      _progressionConfigsKey,
+      configs.values.map((item) => jsonEncode(item.toJson())).toList(),
+    );
+    await saveProgressState(config.progressState);
+  }
+
+  Future<void> resetProgressionConfigToPlanDefaults(String exerciseId) async {
+    final configs = await loadProgressionConfigs();
+    configs.remove(exerciseId);
+
+    await _preferences.setStringList(
+      _progressionConfigsKey,
+      configs.values.map((item) => jsonEncode(item.toJson())).toList(),
+    );
+    await removeProgressState(exerciseId);
   }
 }

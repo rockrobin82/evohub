@@ -7,10 +7,16 @@ import '../../widgets/primary_cta_button.dart';
 import 'models.dart';
 
 class WorkoutDayCard extends StatelessWidget {
-  const WorkoutDayCard({super.key, required this.day, required this.onStart});
+  const WorkoutDayCard({
+    super.key,
+    required this.day,
+    required this.onStart,
+    required this.onManage,
+  });
 
   final WorkoutDay day;
   final VoidCallback onStart;
+  final VoidCallback onManage;
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +68,15 @@ class WorkoutDayCard extends StatelessWidget {
             label: 'Rozpocznij',
             icon: Icons.play_arrow_rounded,
             onPressed: onStart,
+          ),
+          EvoSpacing.gapSm,
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onManage,
+              icon: const Icon(Icons.tune_rounded, size: 18),
+              label: const Text('Zarządzaj ćwiczeniami'),
+            ),
           ),
         ],
       ),

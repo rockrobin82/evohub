@@ -103,6 +103,41 @@ void main() {
     expect(progressState?.currentTargetReps, 13);
   });
 
+  test('exercise progression config saves and resets to plan defaults', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final store = ExerciseLogStore(preferences);
+
+    await store.saveProgressionConfig(
+      const ExerciseProgressionConfig(
+        exerciseId: 'goblet-squat',
+        currentWeightKg: 30,
+        currentTargetReps: 14,
+        minReps: 12,
+        maxReps: 18,
+        repStep: 2,
+        weightIncrementKg: 5,
+      ),
+    );
+
+    final savedConfig = await store.progressionConfigForExercise(
+      'goblet-squat',
+    );
+    final savedState = await store.progressStateForExercise('goblet-squat');
+
+    expect(savedConfig?.currentWeightKg, 30);
+    expect(savedConfig?.currentTargetReps, 14);
+    expect(savedConfig?.repStep, 2);
+    expect(savedConfig?.weightIncrementKg, 5);
+    expect(savedState?.currentWeightKg, 30);
+    expect(savedState?.currentTargetReps, 14);
+
+    await store.resetProgressionConfigToPlanDefaults('goblet-squat');
+
+    expect(await store.progressionConfigForExercise('goblet-squat'), isNull);
+    expect(await store.progressStateForExercise('goblet-squat'), isNull);
+  });
+
   testWidgets('EvoHub dashboard renders sample workout plan', (
     WidgetTester tester,
   ) async {
@@ -131,6 +166,52 @@ void main() {
       find.text('Statystyki są poza zakresem tego MVP foundation.'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('manage exercises shows effective progression settings', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final store = ExerciseLogStore(preferences);
+    await store.saveProgressionConfig(
+      const ExerciseProgressionConfig(
+        exerciseId: 'goblet-squat',
+        currentWeightKg: 30,
+        currentTargetReps: 14,
+        minReps: 12,
+        maxReps: 18,
+        repStep: 2,
+        weightIncrementKg: 5,
+      ),
+    );
+
+    await tester.pumpWidget(const EvoHubApp());
+
+    final manageButton = find
+        .widgetWithText(OutlinedButton, 'Zarządzaj ćwiczeniami')
+        .first;
+    await Scrollable.ensureVisible(
+      tester.element(manageButton),
+      alignment: 0.5,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(manageButton);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Manage Exercises'), findsOneWidget);
+    expect(find.text('FBW Beginner'), findsOneWidget);
+    expect(find.text('Dzień A'), findsOneWidget);
+    expect(find.text('Goblet squat'), findsOneWidget);
+    expect(find.text('30kg × 14'), findsOneWidget);
+    expect(find.text('12-18 reps'), findsWidgets);
+    expect(find.text('+5kg'), findsWidgets);
+
+    await tester.tap(find.text('Goblet squat'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Konfiguracja ćwiczenia'), findsOneWidget);
+    expect(find.text('Current State'), findsOneWidget);
   });
 
   testWidgets('dashboard starts workout session and tracks first set', (
@@ -178,6 +259,21 @@ void main() {
     expect(find.text('20 kg × 12'), findsOneWidget);
     expect(find.text('Cel na dziś'), findsOneWidget);
     expect(find.text('Następny krok'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Konfiguracja ćwiczenia'), findsOneWidget);
+    expect(find.text('Current State'), findsOneWidget);
+    expect(find.text('Progression Rule'), findsOneWidget);
+
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -700));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reset to plan defaults'), findsOneWidget);
+
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
 
     await tester.drag(find.byType(Scrollable).last, const Offset(0, -450));
     await tester.pumpAndSettle();

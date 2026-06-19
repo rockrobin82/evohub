@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../shared/design_tokens.dart';
 import '../../shared/spacing.dart';
 import '../workout_session/workout_day_screen.dart';
+import 'manage_exercises_screen.dart';
 import 'models.dart';
 import 'sample_workout_plans.dart';
 import 'workout_plan_section.dart';
@@ -16,7 +17,7 @@ class WorkoutsScreen extends StatelessWidget {
 
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 96),
         children: [
           Row(
             children: [
@@ -49,6 +50,8 @@ class WorkoutsScreen extends StatelessWidget {
             WorkoutPlanSection(
               plan: plan,
               onStartDay: (plan, day) => _startWorkoutDay(context, plan, day),
+              onManageDay: (plan, day) =>
+                  _manageWorkoutDay(context, plan, day),
             ),
         ],
       ),
@@ -63,6 +66,18 @@ class WorkoutsScreen extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => WorkoutDayScreen(plan: plan, day: day),
+      ),
+    );
+  }
+
+  void _manageWorkoutDay(
+    BuildContext context,
+    WorkoutPlan plan,
+    WorkoutDay day,
+  ) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ManageExercisesScreen(plan: plan, day: day),
       ),
     );
   }

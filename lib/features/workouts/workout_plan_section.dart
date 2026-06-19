@@ -10,10 +10,12 @@ class WorkoutPlanSection extends StatelessWidget {
     super.key,
     required this.plan,
     required this.onStartDay,
+    required this.onManageDay,
   });
 
   final WorkoutPlan plan;
   final void Function(WorkoutPlan plan, WorkoutDay day) onStartDay;
+  final void Function(WorkoutPlan plan, WorkoutDay day) onManageDay;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +41,11 @@ class WorkoutPlanSection extends StatelessWidget {
         ),
         EvoSpacing.gapLg,
         for (final day in plan.days) ...[
-          WorkoutDayCard(day: day, onStart: () => onStartDay(plan, day)),
+          WorkoutDayCard(
+            day: day,
+            onStart: () => onStartDay(plan, day),
+            onManage: () => onManageDay(plan, day),
+          ),
           EvoSpacing.gapMd,
         ],
       ],

@@ -190,3 +190,96 @@ class ExerciseProgressState {
     );
   }
 }
+
+class ExerciseProgressionConfig {
+  const ExerciseProgressionConfig({
+    required this.exerciseId,
+    required this.currentWeightKg,
+    required this.currentTargetReps,
+    required this.minReps,
+    required this.maxReps,
+    required this.repStep,
+    required this.weightIncrementKg,
+  });
+
+  final String exerciseId;
+  final double currentWeightKg;
+  final int currentTargetReps;
+  final int minReps;
+  final int maxReps;
+  final int repStep;
+  final double weightIncrementKg;
+
+  ProgressionRule get progressionRule {
+    return ProgressionRule(
+      type: ProgressionType.doubleProgression,
+      minReps: minReps,
+      maxReps: maxReps,
+      repStep: repStep,
+      weightIncrementKg: weightIncrementKg,
+    );
+  }
+
+  ExerciseProgressState get progressState {
+    return ExerciseProgressState(
+      exerciseId: exerciseId,
+      currentWeightKg: currentWeightKg,
+      currentTargetReps: currentTargetReps,
+    );
+  }
+
+  ExerciseProgressionConfig copyWith({
+    double? currentWeightKg,
+    int? currentTargetReps,
+    int? minReps,
+    int? maxReps,
+    int? repStep,
+    double? weightIncrementKg,
+  }) {
+    return ExerciseProgressionConfig(
+      exerciseId: exerciseId,
+      currentWeightKg: currentWeightKg ?? this.currentWeightKg,
+      currentTargetReps: currentTargetReps ?? this.currentTargetReps,
+      minReps: minReps ?? this.minReps,
+      maxReps: maxReps ?? this.maxReps,
+      repStep: repStep ?? this.repStep,
+      weightIncrementKg: weightIncrementKg ?? this.weightIncrementKg,
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'exerciseId': exerciseId,
+      'currentWeightKg': currentWeightKg,
+      'currentTargetReps': currentTargetReps,
+      'minReps': minReps,
+      'maxReps': maxReps,
+      'repStep': repStep,
+      'weightIncrementKg': weightIncrementKg,
+    };
+  }
+
+  factory ExerciseProgressionConfig.fromJson(Map<String, Object?> json) {
+    return ExerciseProgressionConfig(
+      exerciseId: json['exerciseId'] as String,
+      currentWeightKg: (json['currentWeightKg'] as num).toDouble(),
+      currentTargetReps: json['currentTargetReps'] as int,
+      minReps: json['minReps'] as int,
+      maxReps: json['maxReps'] as int,
+      repStep: json['repStep'] as int,
+      weightIncrementKg: (json['weightIncrementKg'] as num).toDouble(),
+    );
+  }
+
+  factory ExerciseProgressionConfig.fromExercise(Exercise exercise) {
+    return ExerciseProgressionConfig(
+      exerciseId: exercise.id,
+      currentWeightKg: exercise.currentWeightKg,
+      currentTargetReps: exercise.currentTargetReps,
+      minReps: exercise.progressionRule.minReps,
+      maxReps: exercise.progressionRule.maxReps,
+      repStep: exercise.progressionRule.repStep,
+      weightIncrementKg: exercise.progressionRule.weightIncrementKg,
+    );
+  }
+}

@@ -23,8 +23,8 @@ final sampleWorkoutPlans = [
             currentTargetReps: 12,
             progressionRule: ProgressionRule(
               type: ProgressionType.doubleProgression,
-              minReps: 8,
-              maxReps: 12,
+              minReps: 12,
+              maxReps: 18,
               repStep: 1,
               weightIncrementKg: 2.5,
             ),

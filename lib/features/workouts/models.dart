@@ -141,4 +141,52 @@ class ExerciseLog {
   final double weightKg;
   final int reps;
   final int rir;
+
+  Map<String, Object?> toJson() {
+    return {
+      'exerciseId': exerciseId,
+      'completedAt': completedAt.toIso8601String(),
+      'weightKg': weightKg,
+      'reps': reps,
+      'rir': rir,
+    };
+  }
+
+  factory ExerciseLog.fromJson(Map<String, Object?> json) {
+    return ExerciseLog(
+      exerciseId: json['exerciseId'] as String,
+      completedAt: DateTime.parse(json['completedAt'] as String),
+      weightKg: (json['weightKg'] as num).toDouble(),
+      reps: json['reps'] as int,
+      rir: json['rir'] as int,
+    );
+  }
+}
+
+class ExerciseProgressState {
+  const ExerciseProgressState({
+    required this.exerciseId,
+    required this.currentWeightKg,
+    required this.currentTargetReps,
+  });
+
+  final String exerciseId;
+  final double currentWeightKg;
+  final int currentTargetReps;
+
+  Map<String, Object?> toJson() {
+    return {
+      'exerciseId': exerciseId,
+      'currentWeightKg': currentWeightKg,
+      'currentTargetReps': currentTargetReps,
+    };
+  }
+
+  factory ExerciseProgressState.fromJson(Map<String, Object?> json) {
+    return ExerciseProgressState(
+      exerciseId: json['exerciseId'] as String,
+      currentWeightKg: (json['currentWeightKg'] as num).toDouble(),
+      currentTargetReps: json['currentTargetReps'] as int,
+    );
+  }
 }

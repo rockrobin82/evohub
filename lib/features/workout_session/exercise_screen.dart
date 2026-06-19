@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../services/exercise_log_store.dart';
 import '../../shared/design_tokens.dart';
 import '../../shared/spacing.dart';
 import '../../widgets/evo_card.dart';
@@ -26,6 +28,9 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   late int _reps;
   late int _rir;
   late double _weightKg;
+  ExerciseLogStore? _store;
+  ExerciseLog? _latestLog;
+  bool _isLoadingStoredState = true;
 
   Exercise get _exercise => widget.day.exercises[_exerciseIndex];
 
@@ -33,6 +38,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
   void initState() {
     super.initState();
     _loadExerciseDefaults();
+    _initializeStore();
   }
 
   @override
@@ -42,7 +48,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     final rule = exercise.progressionRule;
     final suggestion = rule.nextSuggestion(
       currentWeightKg: _weightKg,
-      currentTargetReps: exercise.currentTargetReps,
+      currentTargetReps: _reps,
       achievedReps: _reps,
     );
     final totalExercises = widget.day.exercises.length;
@@ -63,15 +69,16 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
             Text(exercise.description, style: theme.textTheme.bodySmall),
             EvoSpacing.gapXl,
             _TodayTargetCard(
-              targetReps: exercise.currentTargetReps,
+              targetReps: _reps,
               sets: exercise.sets,
               rir: exercise.targetRir,
             ),
             EvoSpacing.gapLg,
             _ProgressionInfoCard(
-              lastWorkout: _formatLastWorkout(exercise.lastWorkoutResult),
-              currentTarget:
-                  '${_formatWeight(exercise.currentWeightKg)} kg × ${exercise.currentTargetReps}',
+              lastWorkout: _isLoadingStoredState
+                  ? 'Ładowanie...'
+                  : _formatLastWorkout(_latestLog),
+              currentTarget: '${_formatWeight(_weightKg)} kg × $_reps',
               nextStep:
                   '${_formatWeight(suggestion.weightKg)} kg × ${suggestion.targetReps}',
             ),
@@ -155,6 +162,21 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       _completedSetsForExercise += 1;
       _totalCompletedSets += 1;
     });
+    debugPrint(
+      '[ExerciseScreen] completeSet exerciseId=${_exercise.id} '
+      'completedSets=$_completedSetsForExercise/${_exercise.sets} '
+      'weightKg=$_weightKg reps=$_reps rir=$_rir',
+    );
+
+    if (_completedSetsForExercise >= _exercise.sets) {
+      debugPrint(
+        '[ExerciseScreen] exercise complete; saving log for '
+        'exerciseId=${_exercise.id}',
+      );
+      await _saveCompletedExercise();
+    }
+
+    if (!mounted) return;
 
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -174,6 +196,89 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
     _reps = exercise.currentTargetReps;
     _rir = exercise.targetRir;
     _weightKg = exercise.currentWeightKg;
+    _latestLog = null;
+    _isLoadingStoredState = true;
+  }
+
+  Future<void> _initializeStore() async {
+    final preferences = await SharedPreferences.getInstance();
+    if (!mounted) return;
+
+    _store = ExerciseLogStore(preferences);
+    debugPrint('[ExerciseScreen] store initialized; loading startup data');
+    await _loadStoredExerciseState();
+  }
+
+  Future<void> _loadStoredExerciseState() async {
+    final store = _store;
+    if (store == null) return;
+
+    final exercise = _exercise;
+    debugPrint(
+      '[ExerciseScreen] loadStoredExerciseState exerciseId=${exercise.id}',
+    );
+    final latestLog = await store.latestForExercise(exercise.id);
+    final progressState = await store.progressStateForExercise(exercise.id);
+
+    if (!mounted || exercise.id != _exercise.id) return;
+
+    setState(() {
+      _latestLog = latestLog;
+      if (progressState != null) {
+        _weightKg = progressState.currentWeightKg;
+        _reps = progressState.currentTargetReps;
+      }
+      _isLoadingStoredState = false;
+    });
+    debugPrint(
+      '[ExerciseScreen] loaded startup data exerciseId=${exercise.id} '
+      'latestLog=${latestLog == null ? 'null' : '${latestLog.weightKg}kg x ${latestLog.reps} RIR ${latestLog.rir}'} '
+      'progressState=${progressState == null ? 'null' : '${progressState.currentWeightKg}kg x ${progressState.currentTargetReps}'}',
+    );
+  }
+
+  Future<void> _saveCompletedExercise() async {
+    final store = _store;
+    if (store == null) {
+      debugPrint(
+        '[ExerciseScreen] save skipped; store is null for exerciseId=${_exercise.id}',
+      );
+      return;
+    }
+
+    final exercise = _exercise;
+    final completedLog = ExerciseLog(
+      exerciseId: exercise.id,
+      completedAt: DateTime.now(),
+      weightKg: _weightKg,
+      reps: _reps,
+      rir: _rir,
+    );
+    final nextTarget = exercise.progressionRule.nextSuggestion(
+      currentWeightKg: _weightKg,
+      currentTargetReps: _reps,
+      achievedReps: _reps,
+    );
+
+    debugPrint(
+      '[ExerciseScreen] saveCompletedExercise exerciseId=${exercise.id} '
+      'log=${completedLog.weightKg}kg x ${completedLog.reps} RIR ${completedLog.rir} '
+      'next=${nextTarget.weightKg}kg x ${nextTarget.targetReps}',
+    );
+    await store.saveLog(completedLog);
+    await store.saveProgressState(
+      ExerciseProgressState(
+        exerciseId: exercise.id,
+        currentWeightKg: nextTarget.weightKg,
+        currentTargetReps: nextTarget.targetReps,
+      ),
+    );
+
+    if (!mounted || exercise.id != _exercise.id) return;
+
+    setState(() {
+      _latestLog = completedLog;
+    });
   }
 
   void _advanceExercise() {
@@ -199,6 +304,7 @@ class _ExerciseScreenState extends State<ExerciseScreen> {
       _completedSetsForExercise = 0;
       _loadExerciseDefaults();
     });
+    _loadStoredExerciseState();
   }
 
   String _formatLastWorkout(ExerciseLog? log) {

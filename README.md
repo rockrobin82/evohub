@@ -1,4 +1,4 @@
-# EvoHub
+# EvoHub - Progressive Workout Tracker
 
 EvoHub is a Flutter-based workout tracking application focused on simple, sustainable strength progression.
 
